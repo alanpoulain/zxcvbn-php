@@ -1,0 +1,86 @@
+{
+    "source": {
+        "directories": [
+            "src"
+        ]
+    },
+    "mutators": {
+        "@default": true,
+        "global-ignore": [
+            // Globally ignore these two lines because mutating them does not change the final result: there are only here for performance reasons.
+            "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::match::42",
+            "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::match::43"
+        ],
+        "Break_": {
+            "ignore": [
+                // Breaking or continuing is equivalent ($hasFullMatch stays true).
+                "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::match::38"
+            ]
+        },
+        "Continue_": {
+            "ignore": [
+                // If there is another symbol as a digit in the token, breaking or continuing in the loop is equivalent (the symbol will stay since end is only increasing).
+                "ZxcvbnPhp\\Matchers\\Date\\DateMatcher::datesWithoutSeparators::105"
+            ]
+        },
+        "DecrementInteger": {
+            "ignore": [
+                // If begin is < 0, the token starting from the end is not matched by the regular expression.
+                "ZxcvbnPhp\\Matchers\\Date\\DateMatcher::datesWithSeparators::180",
+                // The initial value of $consecutiveSubCount is not relevant: it will be discarded at the first substitution.
+                "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::substituteL33t::102"
+            ],
+            "ignoreSourceCodeByRegex": [".+json_decode\\(.+\\).+"]
+        },
+        "GreaterThan": {
+            "ignore": [
+                // Same max size if >= is used.
+                "ZxcvbnPhp\\Configuration\\Configurator::getDictionaryMaxWordSize"
+            ]
+        },
+        "IncrementInteger": {
+            "ignoreSourceCodeByRegex": [
+                // When depth 512 is used (default value; to use the JSON_THROW_ON_ERROR flag).
+                ".+json_decode\\(.+\\).+"
+            ],
+            "ignore": [
+                // The initial value of $consecutiveSubCount is not relevant: it will be discarded at the first substitution.
+                "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::substituteL33t::102"
+            ]
+        },
+        "LessThan": {
+            "ignore": [
+                // When begin is equal to length, it is handled by the next loop (end < length).
+                "ZxcvbnPhp\\Matchers\\Date\\DateMatcher::datesWithoutSeparators::100",
+                // When begin is equal to length, it is handled by the next loop (end < length).
+                "ZxcvbnPhp\\Matchers\\Date\\DateMatcher::datesWithSeparators::180",
+                // Same best candidate if <= is used.
+                "ZxcvbnPhp\\Matchers\\Date\\DateMatcher::getBestCandidate",
+                // When begin is equal to password length, it is handled by the next loop (end < search end).
+                "ZxcvbnPhp\\Matchers\\Dictionary\\DictionaryMatcher::dictionaryMatch::53",
+                // If the index is equal to the length, the character is empty and the loop breaks.
+                "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::getSubstitutionsAtIndex::162"
+            ]
+        },
+        "MBString": {
+            "ignore": [
+                // Using strlen would only create a performance issue (index higher with empty characters).
+                "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::substituteL33t::108",
+                // Using strlen would only create a performance issue (index higher with empty characters).
+                "ZxcvbnPhp\\Matchers\\Dictionary\\L33tMatcher::getSubstitutionsAtIndex::161"
+            ]
+        },
+        "TrueValue": {
+            "ignoreSourceCodeByRegex": [
+                // To respect the interface.
+                ".+bool \\$isSoleMatch = true.+"
+            ]
+        }
+    },
+    "logs": {
+        "html": "mutation-report.html",
+        "stryker": {
+            "report": "main"
+        }
+    }
+}

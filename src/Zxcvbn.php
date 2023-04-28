@@ -4,87 +4,58 @@ declare(strict_types=1);
 
 namespace ZxcvbnPhp;
 
+use ZxcvbnPhp\Configuration\Configurator;
+
 /**
  * The main entry point.
- *
- * @see  zxcvbn/src/main.coffee
  */
-class Zxcvbn
+final class Zxcvbn
 {
-    /**
-     * @var
-     */
-    protected $matcher;
+    private readonly Options $options;
+    private readonly Matcher $matcher;
+    private readonly Scorer $scorer;
+    private readonly TimeEstimator $timeEstimator;
+    private readonly Feedback $feedback;
 
-    /**
-     * @var
-     */
-    protected $scorer;
-
-    /**
-     * @var
-     */
-    protected $timeEstimator;
-
-    /**
-     * @var
-     */
-    protected $feedback;
-
-    public function __construct()
+    public function __construct(Config $config = new Config())
     {
-        $this->matcher = new \ZxcvbnPhp\Matcher();
-        $this->scorer = new \ZxcvbnPhp\Scorer();
-        $this->timeEstimator = new \ZxcvbnPhp\TimeEstimator();
-        $this->feedback = new \ZxcvbnPhp\Feedback();
-    }
+        $this->options = Configurator::getOptions($config);
 
-    public function addMatcher(string $className): self
-    {
-        $this->matcher->addMatcher($className);
-
-        return $this;
+        $this->matcher = new Matcher($this->options);
+        $this->scorer = new Scorer($this->options);
+        $this->feedback = new Feedback($this->options);
+        $this->timeEstimator = new TimeEstimator($this->options);
     }
 
     /**
      * Calculate password strength via non-overlapping minimum entropy patterns.
      *
-     * @param string $password   Password to measure
-     * @param array  $userInputs Optional user inputs
-     *
-     * @return array Strength result array with keys:
-     *               password
-     *               entropy
-     *               match_sequence
-     *               score
+     * @param string   $password   password to measure
+     * @param string[] $userInputs optional user inputs
      */
-    public function passwordStrength(string $password, array $userInputs = []): array
+    public function passwordStrength(#[\SensitiveParameter] string $password, array $userInputs = []): Result
     {
-        $timeStart = microtime(true);
+        $timeStart = 0.;
+        if ($this->options->calcTimeEnabled) {
+            $timeStart = microtime(true);
+        }
 
-        $sanitizedInputs = array_map(
-            function ($input) {
-                return mb_strtolower((string) $input);
-            },
-            $userInputs
-        );
+        $matches = $this->matcher->getMatches($password, $userInputs);
 
-        // Get matches for $password.
-        // Although the coffeescript upstream sets $sanitizedInputs as a property,
-        // doing this immutably makes more sense and is a bit easier
-        $matches = $this->matcher->getMatches($password, $sanitizedInputs);
+        $matchSequence = $this->scorer->getMostGuessableMatchSequence($password, $matches);
+        $attackTimes = $this->timeEstimator->estimateAttackTimes($matchSequence->guesses);
+        $feedback = $this->feedback->getFeedback($attackTimes->score, $matchSequence->sequence);
 
-        $result = $this->scorer->getMostGuessableMatchSequence($password, $matches);
-        $attackTimes = $this->timeEstimator->estimateAttackTimes($result['guesses']);
-        $feedback = $this->feedback->getFeedback($attackTimes['score'], $result['sequence']);
-
-        return array_merge(
-            $result,
-            $attackTimes,
-            [
-                'feedback'  => $feedback,
-                'calc_time' => microtime(true) - $timeStart
-            ]
+        return new Result(
+            password: $password,
+            guesses: $matchSequence->guesses,
+            guessesLog10: $matchSequence->guessesLog10,
+            sequence: $matchSequence->sequence,
+            crackTimesSeconds: $attackTimes->crackTimesSeconds,
+            crackTimesDisplay: $attackTimes->crackTimesDisplay,
+            score: $attackTimes->score,
+            feedback: $feedback,
+            calcTime: $this->options->calcTimeEnabled ? microtime(true) - $timeStart : -1,
         );
     }
 }

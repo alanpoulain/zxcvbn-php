@@ -4,121 +4,114 @@ declare(strict_types=1);
 
 namespace ZxcvbnPhp;
 
+use ZxcvbnPhp\Configuration\Configurator;
+use ZxcvbnPhp\Result\AttackTimesResult;
+use ZxcvbnPhp\Result\CrackTimesDisplayResult;
+use ZxcvbnPhp\Result\CrackTimesSecondsResult;
+use ZxcvbnPhp\Translation\Translator;
+
 /**
- * Feedback - gives some user guidance based on the strength
- * of a password
- *
- * @see zxcvbn/src/time_estimates.coffee
+ * Gives some user guidance based on the strength of a password.
  */
-class TimeEstimator
+final class TimeEstimator
 {
-    /**
-     * @param int|float $guesses
-     * @return array
-     */
-    public function estimateAttackTimes(float $guesses): array
+    private const SECOND = 1;
+    private const MINUTE = self::SECOND * 60;
+    private const HOUR = self::MINUTE * 60;
+    private const DAY = self::HOUR * 24;
+    private const MONTH = self::DAY * 31;
+    private const YEAR = self::MONTH * 12;
+    private const CENTURY = self::YEAR * 100;
+
+    private array $times = [
+        'ltSecond' => 0,
+        'seconds' => self::SECOND,
+        'minutes' => self::MINUTE,
+        'hours' => self::HOUR,
+        'days' => self::DAY,
+        'months' => self::MONTH,
+        'years' => self::YEAR,
+        'centuries' => self::CENTURY,
+    ];
+
+    private Options $options;
+
+    public function __construct(?Options $options = null)
     {
-        $crack_times_seconds = [
-            'online_throttling_100_per_hour' => $guesses / (100 / 3600),
-            'online_no_throttling_10_per_second' => $guesses / 10,
-            'offline_slow_hashing_1e4_per_second' => $guesses / 1e4,
-            'offline_fast_hashing_1e10_per_second' => $guesses / 1e10
-        ];
-
-        $crack_times_display = array_map(
-            [ $this, 'displayTime' ],
-            $crack_times_seconds
-        );
-
-        return [
-            'crack_times_seconds' => $crack_times_seconds,
-            'crack_times_display' => $crack_times_display,
-            'score'               => $this->guessesToScore($guesses)
-        ];
+        $this->options = $options ?? Configurator::getOptions(new Config());
     }
 
-    protected function guessesToScore(float $guesses): int
+    public function estimateAttackTimes(float $guesses): AttackTimesResult
+    {
+        $crackTimesSeconds = new CrackTimesSecondsResult(
+            onlineThrottling100PerHour: $guesses / (100 / 3600),
+            onlineNoThrottling10PerSecond: $guesses / 10,
+            offlineSlowHashing1e4PerSecond: $guesses / 1e4,
+            offlineFastHashing1e10PerSecond: $guesses / 1e10,
+        );
+
+        $crackTimesDisplay = new CrackTimesDisplayResult(
+            onlineThrottling100PerHour: $this->displayTime($crackTimesSeconds->onlineThrottling100PerHour),
+            onlineNoThrottling10PerSecond: $this->displayTime($crackTimesSeconds->onlineNoThrottling10PerSecond),
+            offlineSlowHashing1e4PerSecond: $this->displayTime($crackTimesSeconds->offlineSlowHashing1e4PerSecond),
+            offlineFastHashing1e10PerSecond: $this->displayTime($crackTimesSeconds->offlineFastHashing1e10PerSecond),
+        );
+
+        return new AttackTimesResult(
+            crackTimesSeconds: $crackTimesSeconds,
+            crackTimesDisplay: $crackTimesDisplay,
+            score: $this->guessesToScore($guesses),
+        );
+    }
+
+    private function guessesToScore(float $guesses): int
     {
         $DELTA = 5;
 
         if ($guesses < 1e3 + $DELTA) {
-            # risky password: "too guessable"
+            // Risky password: "too guessable".
             return 0;
         }
 
         if ($guesses < 1e6 + $DELTA) {
-            # modest protection from throttled online attacks: "very guessable"
+            // Modest protection from throttled online attacks: "very guessable".
             return 1;
         }
 
         if ($guesses < 1e8 + $DELTA) {
-            # modest protection from unthrottled online attacks: "somewhat guessable"
+            // Modest protection from unthrottled online attacks: "somewhat guessable".
             return 2;
         }
 
         if ($guesses < 1e10 + $DELTA) {
-            # modest protection from offline attacks: "safely unguessable"
-            # assuming a salted, slow hash function like bcrypt, scrypt, PBKDF2, argon, etc
+            // Modest protection from offline attacks: "safely unguessable".
+            // Assuming a salted, slow hash function like bcrypt, scrypt, PBKDF2, argon, etc.
             return 3;
         }
 
-        # strong protection from offline attacks under same scenario: "very unguessable"
+        // Strong protection from offline attacks under same scenario: "very unguessable".
         return 4;
     }
 
-    protected function displayTime(float $seconds): string
+    private function displayTime(float $seconds): string
     {
-        $callback = function (float $seconds): array {
-            $minute = 60;
-            $hour = $minute * 60;
-            $day = $hour * 24;
-            $month = $day * 31;
-            $year = $month * 12;
-            $century = $year * 100;
-
-            if ($seconds < 1) {
-                return [null, 'less than a second'];
+        $timeLabels = array_keys($this->times);
+        $foundIndex = \count($timeLabels);
+        foreach ($timeLabels as $index => $timeLabel) {
+            if ($seconds < $this->times[$timeLabel]) {
+                $foundIndex = $index;
+                break;
             }
-
-            if ($seconds < $minute) {
-                $base = round($seconds);
-                return [$base, "$base second"];
-            }
-
-            if ($seconds < $hour) {
-                $base = round($seconds / $minute);
-                return [$base, "$base minute"];
-            }
-
-            if ($seconds < $day) {
-                $base = round($seconds / $hour);
-                return [$base, "$base hour"];
-            }
-
-            if ($seconds < $month) {
-                $base = round($seconds / $day);
-                return [$base, "$base day"];
-            }
-
-            if ($seconds < $year) {
-                $base = round($seconds / $month);
-                return [$base, "$base month"];
-            }
-
-            if ($seconds < $century) {
-                $base = round($seconds / $year);
-                return [$base, "$base year"];
-            }
-
-            return [null, 'centuries'];
-        };
-
-        [$display_num, $display_str] = $callback($seconds);
-
-        if ($display_num > 1) {
-            $display_str .= 's';
         }
 
-        return $display_str;
+        $key = $timeLabels[$foundIndex - 1];
+        $base = $foundIndex > 1 ? (int) round($seconds / $this->times[$key]) : 1;
+
+        return $this->translate($key, $base);
+    }
+
+    private function translate(string $key, int $base): string
+    {
+        return Translator::getTranslator($this->options)->trans(sprintf('timeEstimation.%s', $key), ['base' => $base]);
     }
 }

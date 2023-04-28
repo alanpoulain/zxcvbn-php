@@ -3,4 +3,7 @@ build/
 phpunit.xml
 .idea/
 composer.lock
-.phpunit.result.cache
+.phpunit.cache/
+data-cache/
+.php-cs-fixer.cache
+mutation-report.html

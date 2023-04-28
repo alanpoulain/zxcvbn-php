@@ -1,0 +1,51 @@
+{
+  "warnings": {
+    "straightRow": "Näppäimistön vierekkäiset kirjaimet ovat helppoja arvata.",
+    "keyPattern": "Lyhyet näppäinsarjat ovat helppoja arvata.",
+    "simpleRepeat": "Toistot kuten \"aaa\" ovat helppoja arvata.",
+    "extendedRepeat": "Toistuvat merkkisarjat \"abcabcabc\" ovat helppoja arvata.",
+    "sequences": "Peräkkäiset merkit kuten \"abc\" ovat helppoja arvata.",
+    "recentYears": "Viime vuodet ovat helppoja arvata.",
+    "dates": "Päivät ovat helppoja arvata.",
+    "topTen": "Tämä on yksi yleisimmistä salasanoista.",
+    "topHundred": "Tämä on hyvin usein käytetty salasana.",
+    "common": "Tämä on hyvin yleinen salasana.",
+    "similarToCommon": "Tämä on samankaltainen kuin usein käytetty salasana.",
+    "wordByItself": "Sana on hyvin helppo arvata.",
+    "namesByThemselves": "Yksittäiset nimet ja sukunimet ovat helppoja arvata.",
+    "commonNames": "Yleisnimet ja sukunimet ovat helppoja arvata.",
+    "userInputs":
+    "Salasanassa ei tulisi olla henkilökohtaista tai sivustoon liittyvää tietoa.",
+    "pwned": "Salasanasi on esiintynyt internetissä paljastetussa tietovuodossa."
+  },
+  "suggestions": {
+    "l33t": "Vältä ennustettavissa olevia kirjainvaihtoja kuten esimerkiksi @-merkin käyttöä a:n sijasta",
+    "reverseWords": "Vältä tunnettujen sanojen takaperin kirjoittamista",
+    "allUppercase": "Kirjoita osa kirjaimista isolla, mutta älä kaikkia",
+    "capitalization":
+    "Käytä isoja kirjaimia muutoinkin kuin vain ensimmäisessä kirjaimessa",
+    "dates": "Vältä sinuun liitettävissä olevia päivämääriä ja vuosilukuja",
+    "recentYears": "Vältä lähivuosien käyttöä",
+    "associatedYears": "Vältä sinuun liitettävissä olevien vuosilukujen käyttöä",
+    "sequences": "Vältä tunnettuja merkkisarjoja",
+    "repeated": "Vältä sanojen ja merkkien toistamista",
+    "longerKeyboardPattern":
+    "Käytä salasanassa pidempiä näppäinsarjoja ja vaihda kirjoitussuuntaa useasti",
+    "anotherWord": "Käytä salasanassa lisää vähemmän tunnettuja sanoja",
+    "useWords":
+    "Voit käyttää salasanassa useampia sanoja, mutta vältä kuitenkin tunnettuja lauseita",
+    "noNeed":
+    "Voit luoda vahvan salasanan myös käyttämättä symboleja, numeroita tai isoja kirjaimia",
+    "pwned": "Jos käytät tätä salasanaa muualla, sinun kannattaa vaihtaa se pian"
+  },
+  "timeEstimation": {
+    "ltSecond": "alle sekunti",
+    "seconds": "{base, plural, =1 {# sekunti} other {# sekuntia}}",
+    "minutes": "{base, plural, =1 {# minuutti} other {# minuuttia}}",
+    "hours": "{base, plural, =1 {# tunti} other {# tuntia}}",
+    "days": "{base, plural, =1 {# päivä} other {# päivää}}",
+    "months": "{base, plural, =1 {# kuukausi} other {# kuukautta}}",
+    "years": "{base, plural, =1 {# vuosi} other {# vuotta}}",
+    "centuries": "vuosikymmeniä"
+  }
+}

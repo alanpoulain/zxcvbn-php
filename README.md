@@ -63,5 +63,3 @@ Thanks to:
 * @lowe for the original [Javascript Zxcvbn](https://github.com/lowe/zxcvbn)
 * [@Dreyer's port](https://github.com/Dreyer/php-zxcvbn) for reference for initial implementation
 * [@mkopinsky](https://github.com/mkopinsky) for major updates to keep in sync with upstream scoring
-
-

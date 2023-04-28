@@ -4,150 +4,116 @@ declare(strict_types=1);
 
 namespace ZxcvbnPhp\Test;
 
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ZxcvbnPhp\Matchers\Bruteforce;
-use ZxcvbnPhp\Matchers\DictionaryMatch;
-use ZxcvbnPhp\Matchers\MatchInterface;
+use ZxcvbnPhp\Config;
+use ZxcvbnPhp\Configuration\Configurator;
+use ZxcvbnPhp\Matchers\Dictionary\DictionaryMatch;
+use ZxcvbnPhp\Options;
+use ZxcvbnPhp\Result;
 use ZxcvbnPhp\Zxcvbn;
 
-class ZxcvbnTest extends TestCase
+#[CoversClass(Zxcvbn::class)]
+#[CoversClass(Result::class)]
+final class ZxcvbnTest extends TestCase
 {
-    /** @var Zxcvbn */
-    private $zxcvbn;
+    private Zxcvbn $zxcvbn;
+    private Options $options;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         $this->zxcvbn = new Zxcvbn();
+        $this->options = Configurator::getOptions(new Config());
     }
 
-    public function testMinimumGuessesForMultipleMatches()
+    public function testMinimumGuessesForMultipleMatches(): void
     {
-        /** @var MatchInterface[] $matches */
-        $matches = $this->zxcvbn->passwordStrength('rockyou')['sequence'];
+        $matches = $this->zxcvbn->passwordStrength('rockyou')->sequence;
 
-        // zxcvbn will return two matches: 'rock' (rank 359) and 'you' (rank 1).
+        // Zxcvbn will return two matches: 'rock' (rank 484) and 'you' (rank 1).
         // If tested alone, the word 'you' would return only 1 guess, but because it's part of a larger password,
         // it should return the minimum number of guesses, which is 50 for a multi-character token.
-        $this->assertSame(50.0, $matches[1]->getGuesses());
+        self::assertSame(50.0, Options::getClassByPattern($this->options->scorers, $matches[1]::getPattern())::getGuesses($matches[1], $this->options));
     }
 
-    public function typeDataProvider()
+    public static function provideZxcvbnSanityCheckCases(): iterable
     {
         return [
-            ['password', 'string'],
-            ['guesses', 'numeric'],
-            ['guesses_log10', 'numeric'],
-            ['sequence', 'array'],
-            ['crack_times_seconds', 'array'],
-            ['crack_times_display', 'array'],
-            ['feedback', 'array'],
-            ['calc_time', 'numeric'],
-        ];
-    }
-
-    /**
-     * @dataProvider typeDataProvider
-     * @throws \Exception
-     */
-    public function testZxcvbnReturnTypes($key, $type)
-    {
-        $zxcvbn = new Zxcvbn();
-        $result = $zxcvbn->passwordStrength('utmostfortitude2018');
-
-        $this->assertArrayHasKey($key, $result, "zxcvbn result has key " . $key);
-
-        if ($type === 'string') {
-            $correct = is_string($result[$key]);
-        } elseif ($type === 'numeric') {
-            $correct = is_int($result[$key]) || is_float($result[$key]);
-        } elseif ($type === 'array') {
-            $correct = is_array($result[$key]);
-        } else {
-            throw new \Exception('Invalid test case');
-        }
-
-        $this->assertTrue($correct, "zxcvbn result value " . $key . " is type " . $type);
-    }
-
-    public function sanityCheckDataProvider()
-    {
-        return [
-            ['password', 0, ['dictionary',], 'less than a second', 3],
-            ['65432', 0, ['sequence',], 'less than a second', 101],
-            ['sdfgsdfg', 1, ['repeat',], 'less than a second', 2595],
-            ['fortitude', 1, ['dictionary',], '1 second', 11308],
-            ['dfjkym', 1, ['bruteforce',], '2 minutes', 1000001],
-            ['fortitude22', 2, ['dictionary', 'repeat',], '2 minutes', 1140700],
-            ['absoluteadnap', 2, ['dictionary', 'dictionary',], '25 minutes', 15187504],
-            ['knifeandspoon', 3, ['dictionary', 'dictionary', 'dictionary'], '1 day', 1108057600],
-            ['h1dden_26191', 3, ['dictionary', 'bruteforce', 'date'], '3 days', 2730628000],
+            ['password', 0, ['dictionary'], 'less than a second', 3],
+            ['65432', 0, ['sequence'], 'less than a second', 101],
+            ['sdfgsdfg', 1, ['repeat'], 'less than a second', 2595],
+            ['fortitude', 1, ['dictionary'], '1 second', 14831],
+            ['dfjkym', 1, ['bruteforce'], '2 minutes', 1000001],
+            ['fortitude22', 2, ['dictionary', 'repeat'], '2 minutes', 1493000],
+            ['absoluteadnap', 2, ['dictionary', 'dictionary'], '32 minutes', 19333360],
+            ['knifeandspoon', 3, ['dictionary', 'dictionary', 'dictionary'], '2 days', 1313056000],
+            ['h1dden_26191', 3, ['dictionary', 'bruteforce', 'date'], '3 days', 2254368700],
             ['4rfv1236yhn!', 4, ['spatial', 'sequence', 'bruteforce'], '1 month', 38980000000],
-            ['BVidSNqe3oXVyE1996', 4, ['bruteforce', 'regex',], 'centuries', 10000000000010000],
+            ['BVidSNqe3oXVyE1996', 4, ['bruteforce', 'date'], 'centuries', 10000000000010000],
         ];
     }
 
     /**
-     * Some basic sanity checks. All of the underlying functionality is tested in more details in their specific
-     * classes, but this is just to check that it's all tied together correctly at the end.
-     * @dataProvider sanityCheckDataProvider
-     * @param string $password
-     * @param int $score
+     * Some basic sanity checks.
+     * All the underlying functionalities are tested in more details in their specific classes,
+     * but this is just to check that it's all tied together correctly at the end.
+     *
      * @param string[] $patterns
-     * @param string $slowHashingDisplay
-     * @param float $guesses
      */
+    #[DataProvider('provideZxcvbnSanityCheckCases')]
     public function testZxcvbnSanityCheck(string $password, int $score, array $patterns, string $slowHashingDisplay, float $guesses): void
     {
         $result = $this->zxcvbn->passwordStrength($password);
 
-        $this->assertSame($password, $result['password'], "zxcvbn result has correct password");
-        $this->assertSame($score, $result['score'], "zxcvbn result has correct score");
-        $this->assertSame(
+        self::assertSame($password, $result->password, 'zxcvbn result has correct password');
+        self::assertSame($score, $result->score, 'zxcvbn result has correct score');
+        self::assertSame(
             $slowHashingDisplay,
-            $result['crack_times_display']['offline_slow_hashing_1e4_per_second'],
-            "zxcvbn result has correct display time for offline slow hashing"
+            $result->crackTimesDisplay->offlineSlowHashing1e4PerSecond,
+            'zxcvbn result has correct display time for offline slow hashing'
         );
-        $this->assertEqualsWithDelta($guesses, $result['guesses'], 1.0, "zxcvbn result has correct guesses");
+        self::assertEqualsWithDelta($guesses, $result->guesses, 1.0, 'zxcvbn result has correct guesses');
 
-        $actualPatterns = array_map(function ($match) {
-            return $match->pattern;
-        }, $result['sequence']);
-        $this->assertSame($patterns, $actualPatterns, "zxcvbn result has correct patterns");
+        $actualPatterns = array_map(static fn ($match) => $match::getPattern(), $result->sequence);
+        self::assertSame($patterns, $actualPatterns, 'zxcvbn result has correct patterns');
+    }
+
+    public function testOptionsUserDefinedWords(): void
+    {
+        $zxcvbn = new Zxcvbn(new Config(additionalDictionaries: ['userInputs' => ['PJnD', 'WQBG', 'ZhwZ']]));
+        $result = $zxcvbn->passwordStrength('_wQbgL491');
+
+        self::assertInstanceOf(DictionaryMatch::class, $result->sequence[1], 'user input match is correct class');
+        self::assertSame('wQbg', $result->sequence[1]->token(), 'user input match has correct token');
     }
 
     /**
-     * There's a similar test in DictionaryTest for this as well, but this specific test is for ensuring that the
-     * user input gets passed from the Zxcvbn class all the way through to the DictionaryMatch function.
+     * There's a similar test in DictionaryMatcherTest for this as well, but this specific test is for ensuring that
+     * the user input gets passed from the Zxcvbn class all the way through to the DictionaryMatch class.
      */
-    public function testUserDefinedWords()
+    public function testUserDefinedWords(): void
     {
         $result = $this->zxcvbn->passwordStrength('_wQbgL491', ['PJnD', 'WQBG', 'ZhwZ']);
 
-        $this->assertInstanceOf(DictionaryMatch::class, $result['sequence'][1], "user input match is correct class");
-        $this->assertSame('wQbg', $result['sequence'][1]->token, "user input match has correct token");
+        self::assertInstanceOf(DictionaryMatch::class, $result->sequence[1], 'user input match is correct class');
+        self::assertSame('wQbg', $result->sequence[1]->token(), 'user input match has correct token');
     }
 
-    public function testMultibyteUserDefinedWords()
+    public function testMultibyteUserDefinedWords(): void
     {
         $result = $this->zxcvbn->passwordStrength('المفاتيح', ['العربية', 'المفاتيح', 'لوحة']);
 
-        $this->assertInstanceOf(DictionaryMatch::class, $result['sequence'][0], "user input match is correct class");
-        $this->assertSame('المفاتيح', $result['sequence'][0]->token, "user input match has correct token");
+        self::assertInstanceOf(DictionaryMatch::class, $result->sequence[0], 'user input match is correct class');
+        self::assertSame('المفاتيح', $result->sequence[0]->token(), 'user input match has correct token');
     }
 
-    public function testAddMatcherWillThrowException()
+    public function testInvalidAdditionalMatcherWillThrowException(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        $this->zxcvbn->addMatcher('invalid className');
+        (new Zxcvbn(new Config(additionalMatchers: ['invalid className'])))->passwordStrength('you');
 
         $this->expectNotToPerformAssertions();
-    }
-
-    public function testAddMatcherWillReturnSelf()
-    {
-        $result = $this->zxcvbn->addMatcher(Bruteforce::class);
-
-        $this->assertSame($this->zxcvbn, $result);
     }
 }

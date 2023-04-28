@@ -4,84 +4,77 @@ declare(strict_types=1);
 
 namespace ZxcvbnPhp\Test;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use ZxcvbnPhp\Config;
+use ZxcvbnPhp\Configuration\Configurator;
 use ZxcvbnPhp\Matcher;
-use ZxcvbnPhp\Matchers\Bruteforce;
-use ZxcvbnPhp\Matchers\DictionaryMatch;
+use ZxcvbnPhp\Matchers\Dictionary\DictionaryMatch;
+use ZxcvbnPhp\Matchers\MatchInterface;
 
-/**
- * @covers \ZxcvbnPhp\Matcher
- */
-class MatcherTest extends TestCase
+#[CoversClass(Matcher::class)]
+final class MatcherTest extends TestCase
 {
-    public function testGetMatches()
+    public function testGetMatches(): void
     {
         $matcher = new Matcher();
-        $matches = $matcher->getMatches('jjj');
-        $this->assertSame('repeat', $matches[0]->pattern, 'Pattern incorrect');
-        $this->assertCount(1, $matches);
+        $password = 'jjjjj';
+        $matches = array_values(array_filter($matcher->getMatches($password), static fn (MatchInterface $match) => $match->token() === $password));
 
-        $matches = $matcher->getMatches('jjjjj');
-        $this->assertSame('repeat', $matches[0]->pattern, 'Pattern incorrect');
+        self::assertSame('repeat', $matches[0]::getPattern(), 'Pattern incorrect');
+        self::assertCount(1, $matches);
     }
 
-    public function testEmptyString()
+    public function testEmptyString(): void
     {
         $matcher = new Matcher();
-        $this->assertEmpty($matcher->getMatches(''), "doesn't match ''");
+
+        self::assertEmpty($matcher->getMatches(''), "doesn't match ''");
     }
 
-    public function testMultiplePatterns()
+    public function testMultiplePatterns(): void
     {
         $matcher = new Matcher();
         $password = 'r0sebudmaelstrom11/20/91aaaa';
 
         $expectedMatches = [
-            ['dictionary', [ 0,  6]],
-            ['dictionary', [ 7, 15]],
+            ['dictionary', [0,   6]],
+            ['dictionary', [7,  15]],
             ['date',       [16, 23]],
-            ['repeat',     [24, 27]]
+            ['repeat',     [24, 27]],
         ];
 
         $matches = $matcher->getMatches($password);
         foreach ($matches as $match) {
-            $search = array_search([$match->pattern, [$match->begin, $match->end]], $expectedMatches);
-            if ($search !== false) {
+            $search = array_search([$match::getPattern(), [$match->begin(), $match->end()]], $expectedMatches, true);
+            if (false !== $search) {
                 unset($expectedMatches[$search]);
             }
         }
 
-        $this->assertEmpty($expectedMatches, "matches multiple patterns");
+        self::assertEmpty($expectedMatches, 'matches multiple patterns');
     }
 
     /**
-     * There's a similar test in DictionaryTest for this as well, but this specific test is for ensuring that the
-     * user input gets passed from the Matcher class through to DictionaryMatch function.
+     * There's a similar test in DictionaryMatcherTest for this as well, but this specific test is for ensuring that
+     * the user input gets passed from the Matcher class through to DictionaryMatch class.
      */
-    public function testUserDefinedWords()
+    public function testUserDefinedWords(): void
     {
         $matcher = new Matcher();
         $matches = $matcher->getMatches('_wQbgL491', ['PJnD', 'WQBG', 'ZhwZ']);
 
-        $this->assertInstanceOf(DictionaryMatch::class, $matches[0], "user input match is correct class");
-        $this->assertSame('wQbg', $matches[0]->token, "user input match has correct token");
+        self::assertInstanceOf(DictionaryMatch::class, $matches[0], 'user input match is correct class');
+        self::assertSame('wQbg', $matches[0]->token(), 'user input match has correct token');
     }
 
-    public function testAddMatcherWillThrowException()
+    public function testInvalidAdditionalMatcher(): void
     {
+        $matcher = new Matcher(Configurator::getOptions(new Config(additionalMatchers: ['invalid className'])));
+
         $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Matcher class must implement ZxcvbnPhp\Matchers\MatcherInterface');
 
-        $matcher = new Matcher();
-        $matcher->addMatcher('invalid className');
-
-        $this->expectNotToPerformAssertions();
-    }
-
-    public function testAddMatcherWillReturnSelf()
-    {
-        $matcher = new Matcher();
-        $result = $matcher->addMatcher(Bruteforce::class);
-
-        $this->assertSame($matcher, $result);
+        $matcher->getMatches('abc');
     }
 }
